@@ -4,6 +4,8 @@
 // @version      0.3.23
 // @description  将 CC98 论坛映射为 WPS/Excel 表格模式。
 // @author       季风
+// @license      MIT
+// @supportURL   https://github.com/amiongogo/cc98-wps-table-disguise/issues
 // @match        *://www.cc98.org/*
 // @match        *://cc98.org/*
 // @run-at       document-start
