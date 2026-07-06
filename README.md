@@ -5,8 +5,8 @@
 ## 安装
 
 1. 安装 Tampermonkey 或兼容的用户脚本管理器。
-2. 打开本仓库中的 `cc98-wps-table-disguise.user.js`。
-3. 如果仓库已发布到 GitHub，可使用 Raw 链接安装或更新脚本。
+2. 打开安装链接：<https://github.com/amiongogo/cc98-wps-table-disguise/raw/main/cc98-wps-table-disguise.user.js>
+3. 在用户脚本管理器中确认安装或更新。
 
 ## 功能
 
@@ -15,7 +15,3 @@
 - 未登录时跳转原生登录页，登录页、个人中心、私信等复杂交互页面保留原界面。
 - 顶部保留常用导航入口，并根据登录状态显示登录或退出登录。
 - 提供油猴菜单切换 WPS 表格伪装和图片显示。
-
-## 说明
-
-脚本仅匹配 `www.cc98.org` 和 `cc98.org`。本仓库只发布用户脚本本体；本地测试脚本、测试截图和临时抓取的 CC98 bundle 不纳入版本管理。
