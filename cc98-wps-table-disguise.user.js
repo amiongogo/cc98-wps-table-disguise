@@ -2,7 +2,7 @@
 // @name         CC98 摸鱼模式
 // @namespace    https://www.cc98.org/
 // @version      0.3.23
-// @description  将 CC98 论坛映射为 WPS/Excel 表格模式。
+// @description  将 CC98 论坛映射为 WPS/Excel 表格模式。使用了[NGA 优化摸鱼体验](https://greasyfork.org/zh-CN/scripts/393991-nga)的部分样式，感谢作者的无私奉献。
 // @author       季风
 // @license      MIT
 // @supportURL   https://github.com/amiongogo/cc98-wps-table-disguise/issues
