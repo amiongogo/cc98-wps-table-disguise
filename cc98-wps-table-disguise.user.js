@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         CC98 摸鱼模式
 // @namespace    https://www.cc98.org/
-// @version      0.3.23
+// @version      0.3.24
 // @description  将 CC98 论坛映射为 WPS/Excel 表格模式。使用了[NGA 优化摸鱼体验](https://greasyfork.org/zh-CN/scripts/393991-nga)的部分样式，感谢作者的无私奉献。
 // @author       季风
 // @license      MIT
 // @supportURL   https://github.com/amiongogo/cc98-wps-table-disguise/issues
 // @match        *://www.cc98.org/*
 // @match        *://cc98.org/*
+// @match        *://webvpn.zju.edu.cn/https/77726476706e69737468656265737421e7e056d22433310830079bab/*
 // @run-at       document-start
 // @grant        GM_registerMenuCommand
 // @grant        GM_getValue
@@ -111,9 +112,11 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
     const STORE_ENABLED = 'cc98WpsTableDisguise.enabled';
     const STORE_HIDE_IMAGES = 'cc98WpsTableDisguise.hideImages';
     const STORE_TITLE = 'cc98WpsTableDisguise.title';
+    const STORE_APP_MODE = 'cc98WpsTableDisguise.appMode';
     const ROOT_ID = 'cc98-wps-root';
     const SOURCE_CLASS = 'cc98-wps-source';
     const FETCH_TIMEOUT = 12000;
+    const WEBVPN_PREFIX = '/https/77726476706e69737468656265737421e7e056d22433310830079bab';
 
     const getValue = (key, fallback) => {
         try {
@@ -135,6 +138,7 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
     const state = {
         enabled: getValue(STORE_ENABLED, true),
         hideImages: getValue(STORE_HIDE_IMAGES, true),
+        appMode: getValue(STORE_APP_MODE, false),
         title: getValue(STORE_TITLE, '工作簿1'),
         renderId: 0,
         lastHref: '',
@@ -149,9 +153,21 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
     const rawTextOf = node => (node?.textContent || node?.innerText || '').replace(/\s+/g, ' ').trim();
     const attr = (node, name) => node?.getAttribute?.(name) || '';
     const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+    const isWebVpn = () => location.hostname === 'webvpn.zju.edu.cn' && location.pathname.startsWith(WEBVPN_PREFIX);
+    const cc98Path = (path = location.pathname) => {
+        const value = path || '/';
+        return value.startsWith(WEBVPN_PREFIX) ? value.slice(WEBVPN_PREFIX.length) || '/' : value;
+    };
+    const routePath = () => cc98Path(location.pathname);
+    const withWebVpnPrefix = path => (isWebVpn() && path.startsWith('/') && !path.startsWith(WEBVPN_PREFIX)) ? `${WEBVPN_PREFIX}${path}` : path;
     const abs = href => {
         try {
-            return new URL(href, location.origin).pathname + new URL(href, location.origin).search + new URL(href, location.origin).hash;
+            if (/^https?:\/\//i.test(href || '')) {
+                const url = new URL(href);
+                return `${url.pathname}${url.search}${url.hash}`;
+            }
+            const url = new URL(href || '/', location.origin);
+            return withWebVpnPrefix(`${url.pathname}${url.search}${url.hash}`);
         } catch (_) {
             return href || '#';
         }
@@ -214,6 +230,8 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
         .hld__excel-body #m_nav .nav_root,.hld__excel-body #m_nav .nav_link {background:none;border:none;box-shadow:none;padding:0;color:#000;border-radius:0;font-weight:normal;}
         .hld__excel-body #m_nav a {color:#000!important;text-decoration:none!important;}
         .hld__excel-body #m_nav a:hover {text-decoration:underline!important;}
+        .hld__excel-body #cc98-wps-back {margin-left:20px;border:0;background:transparent;color:#000!important;font-size:14px;cursor:pointer;padding:0;}
+        .hld__excel-body #cc98-wps-back:hover {text-decoration:underline!important;}
         .hld__excel-body #cc98-wps-topmenu {position:fixed;top:5px;right:75px;height:20px;z-index:2147483003;display:flex;gap:9px;align-items:center;max-width:720px;overflow:hidden;white-space:nowrap;font-size:13px;font-weight:normal;line-height:20px;color:#424242;}
         .hld__excel-body #cc98-wps-topmenu a,.hld__excel-body #cc98-wps-topmenu button {height:20px;line-height:18px;padding:0 2px;border:0;background:transparent;color:#424242!important;font-size:13px;font-weight:normal;cursor:pointer;text-decoration:none;}
         .hld__excel-body #cc98-wps-topmenu a:hover,.hld__excel-body #cc98-wps-topmenu button:hover {text-decoration:underline!important;}
@@ -225,10 +243,11 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
         .hld__excel-body .topicrow .c1 {width:33px;background:#e8e8e8!important;text-align:center;vertical-align:middle;}
         .hld__excel-body .topicrow .c1:before {content:counter(num);counter-increment:num;color:#777777;font-size:16px;}
         .hld__excel-body .topicrow .c2 {padding-left:5px!important;width:auto;color:#1a3959!important;}
-        .hld__excel-body .topicrow .c3 {width:210px;color:#1a3959!important;padding-left:6px!important;}
-        .hld__excel-body .topicrow .c4 {width:270px;color:#777!important;padding-left:6px!important;}
-        .hld__excel-body .topicrow .c2,.hld__excel-body .topicrow .c3,.hld__excel-body .topicrow .c4 {overflow:hidden;word-break:break-word;}
-        .hld__excel-body .topicrow .c3 > div,.hld__excel-body .topicrow .c4 > div {background:#fff!important;white-space:pre-line;}
+        .hld__excel-body .topicrow .c3 {width:150px;color:#1a3959!important;padding-left:6px!important;}
+        .hld__excel-body .topicrow .c4 {width:150px;color:#777!important;padding-left:6px!important;}
+        .hld__excel-body .topicrow .c5 {width:105px;color:#777!important;padding-left:6px!important;}
+        .hld__excel-body .topicrow .c2,.hld__excel-body .topicrow .c3,.hld__excel-body .topicrow .c4,.hld__excel-body .topicrow .c5 {overflow:hidden;word-break:break-word;}
+        .hld__excel-body .topicrow .c3 > div,.hld__excel-body .topicrow .c4 > div,.hld__excel-body .topicrow .c5 > div {background:#fff!important;white-space:pre-line;}
         .hld__excel-body #m_posts .c3 {white-space:pre-line;}
         .hld__excel-body .topicrow .c3 > div a,.hld__excel-body .topicrow .c4 > div a {color:#888!important;}
         .hld__excel-body .topicrow .postdate,.hld__excel-body .topicrow .replydate {display:block;margin:0;}
@@ -255,10 +274,12 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
         .hld__excel-body #m_posts button,.hld__excel-body #m_posts .replierBtn {background:#eee!important;border:1px solid #bbb!important;color:#333!important;border-radius:0!important;margin-right:4px;}
         .hld__excel-body #m_posts .cc98-action-text {border:0!important;background:transparent!important;color:#1a3959!important;padding:0!important;margin:0!important;cursor:pointer;font:13px/1.5 Arial,"Microsoft YaHei",sans-serif!important;}
         .hld__excel-body #m_posts .cc98-action-text.cc98-action-hot {color:#c00000!important;}
-        .hld__excel-body #m_posts img,.hld__excel-body #m_posts video,.hld__excel-body #m_posts canvas {max-width:100%!important;height:auto!important;}
+        .hld__excel-body #m_posts img,.hld__excel-body #m_posts video,.hld__excel-body #m_posts canvas {display:inline-block!important;max-width:100%!important;height:auto!important;min-height:0!important;vertical-align:top!important;}
+        .hld__excel-body.cc98-hide-images #m_posts img:not(.cc98-wps-asset),.hld__excel-body.cc98-hide-images #m_posts video,.hld__excel-body.cc98-hide-images #m_posts canvas {display:none!important;width:0!important;height:0!important;min-height:0!important;margin:0!important;padding:0!important;}
         .hld__excel-body.cc98-hide-images img:not(.cc98-wps-asset),.hld__excel-body.cc98-hide-images video,.hld__excel-body.cc98-hide-images canvas {display:none!important;}
         .hld__excel-body .cc98-meta {color:#777;font-size:12px;margin-top:3px;}
         .hld__excel-body .cc98-userline {display:block;margin:0 0 4px;color:#777;}
+        .hld__excel-body .posterInfoLine .cc98-userline:nth-child(2),.hld__excel-body .posterInfoLine .cc98-userline:nth-child(3) {display:inline-block;margin:0 4px 4px 0;color:#1a3959;}
         .hld__excel-body .cc98-post-actions {color:#777;font-size:12px;}
         .hld__excel-body .cc98-post-actions .row,.hld__excel-body .cc98-post-actions .comment1 {display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:8px!important;width:100%!important;}
         .hld__excel-body .cc98-post-actions .signature,.hld__excel-body .cc98-signature {display:none!important;}
@@ -369,7 +390,7 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
 
     const sectionRow = title => `
         <tr class="topicrow cc98-section">
-            <td class="c1"></td><td class="c2">${esc(title)}</td><td class="c3"></td><td class="c4"></td>
+            <td class="c1"></td><td class="c2">${esc(title)}</td><td class="c3"></td><td class="c4"></td><td class="c5"></td>
         </tr>
     `;
 
@@ -381,14 +402,15 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
                 ${row.board ? `<span class="cc98-meta"> [${esc(row.board)}]</span>` : ''}
                 ${row.summary ? `<div class="cc98-meta">${esc(row.summary)}</div>` : ''}
             </td>
-            <td class="c3"><div>${row.author ? esc(row.author) : ''}</div>${row.tags ? `<div>${esc(row.tags)}</div>` : ''}<div class="postdate">${esc(row.time || '')}</div></td>
-            <td class="c4">${row.views ? `<div>浏览：${esc(row.views)}</div>` : ''}<div>${row.last ? esc(row.last) : ''}</div><div class="replydate">${esc(row.extra || '')}</div></td>
+            <td class="c3"><div>${row.author ? esc(row.author) : ''}</div></td>
+            <td class="c4"><div class="postdate">${esc(row.time || '')}</div></td>
+            <td class="c5">${row.views ? `<div>${esc(row.views)}</div>` : ''}</td>
         </tr>
     `;
 
     const listToolRow = html => html ? `
         <tr class="topicrow cc98-list-toolrow">
-            <td class="c1"></td><td class="c2" colspan="3">${html}</td>
+            <td class="c1"></td><td class="c2" colspan="4">${html}</td>
         </tr>
     ` : '';
 
@@ -399,22 +421,53 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
     `;
 
     const navHtml = (items) => {
-        const links = items.length ? items : [{text: 'C C 9 8', href: '/'}];
+        const links = items.length ? items : [{text: 'CC98', href: '/'}];
         return `<div id="m_nav"><div class="nav_spr">${links.map((item, index) => {
-            const label = esc(index === 0 ? spaced(item.text || 'CC98') : item.text || '');
-            return `${index ? '<span> » </span>' : ''}<a class="${index ? 'nav_link' : 'nav_root'}" href="${esc(item.href || '#')}">${label}</a>`;
-        }).join('')}</div></div>`;
+            const label = esc(index === 0 ? 'CC98' : item.text || '');
+            const href = item.href && item.href !== '#' ? abs(item.href) : '#';
+            return `${index ? '<span> » </span>' : ''}<a class="${index ? 'nav_link' : 'nav_root'}" href="${esc(href)}">${label}</a>`;
+        }).join('')}<button type="button" id="cc98-wps-back">返回</button></div></div>`;
     };
 
-    const spaced = value => String(value || '').split('').join(' ');
+    const appUrlFor = href => {
+        const url = new URL(href || location.href, location.href);
+        if (!/cc98-wps-app/.test(url.hash)) url.hash = `${url.hash ? `${url.hash}&` : ''}cc98-wps-app`;
+        return url.href;
+    };
+
+    const isAppWindow = () => /cc98-wps-app/.test(location.hash) || window.name === 'cc98-wps-app';
+
+    const openStandaloneWindow = () => {
+        try {
+            const appWindow = window.open(appUrlFor(location.href), 'cc98-wps-app', 'popup=yes,toolbar=no,location=no,menubar=no,status=no,scrollbars=yes,resizable=yes,width=1280,height=860');
+            if (appWindow) {
+                appWindow.focus();
+                return true;
+            }
+        } catch (_) {}
+        return false;
+    };
+
+    const ensureStandaloneWindow = () => {
+        if (!state.appMode || isAppWindow()) {
+            if (isAppWindow()) window.name = 'cc98-wps-app';
+            return;
+        }
+        const key = `cc98-wps-app-opened:${location.href}`;
+        if (sessionStorage.getItem(key) === '1') return;
+        if (openStandaloneWindow()) sessionStorage.setItem(key, '1');
+    };
 
     const breadcrumbs = () => {
+        const topicId = (routePath().match(/\/topic\/(\d+)/) || [])[1];
         const candidates = Array.from(document.querySelectorAll('a'))
             .filter(a => {
                 const href = attr(a, 'href');
                 const text = textOf(a);
                 if (href === '/' && text === '首页') return false;
-                return text && (href === '/' || href === '/boardList' || /^\/board\/\d+/.test(href) || /^\/topic\/\d+/.test(href));
+                if (href === '/boardList' || text === '版面列表') return false;
+                if (!text || !(href === '/' || /^\/board\/\d+/.test(href) || /^\/topic\/\d+/.test(href))) return false;
+                return !topicId || !/^\/topic\/\d+/.test(href) || href.includes(`/topic/${topicId}`);
             })
             .map(a => ({text: textOf(a), href: attr(a, 'href')}));
         const seen = new Set();
@@ -425,10 +478,11 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
             seen.add(key);
             if (/^\d+$/.test(item.text)) continue;
             result.push(item);
-            if (result.length >= 4 && /^\/topic\/\d+/.test(item.href)) break;
+            if (/^\/topic\/\d+/.test(item.href)) break;
         }
         if (!result.length) result.push({text: 'CC98', href: '/'});
         if (result[0].text === 'CC98论坛') result[0].text = 'CC98';
+        if (result[0].href === '/') result[0].text = 'CC98';
         return result;
     };
 
@@ -464,7 +518,7 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
                 item.source.dataset.cc98WpsProxyId = id;
                 return `<button type="button" data-cc98-proxy="${id}">${esc(item.text)}</button>`;
             }
-            return `<a href="${esc(item.href || '#')}">${esc(item.text)}</a>`;
+            return `<a href="${esc(item.href ? abs(item.href) : '#')}">${esc(item.text)}</a>`;
         }).join('')}</div>`;
     };
 
@@ -518,7 +572,8 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
     const buildTopicMeta = ({board, tags, time, views, right}) => {
         const boardText = cleanBoardName(board);
         return {
-            tags: boardText,
+            board: boardText,
+            tags: '',
             time,
             views,
             last: (right?.last || '').replace(/^最后回复[:：]?/, '最后回复：'),
@@ -578,7 +633,7 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
         const rightText = textOf(lastLink || el.querySelector('.board-postItem-lastReply')) || textOf(el.querySelector('.board-postItem-right'));
         const mixed = statNode ? {tags: '', time: '', views: '', right: {last: '', extra: ''}} : splitListMeta(`${tags} ${time} ${views} ${rightText}`);
         const right = mixed.right.last ? mixed.right : normalizeLast(rightText.replace('/', ' '));
-        const board = textOf(el.querySelector('.board-postItem-board,.card-topic-board,a[href^="/board/"]')) || (/^\/board\//.test(location.pathname) ? textOf(document.querySelector('.boardTitle,.areaName,a[href^="/board/"]')) : '');
+        const board = textOf(el.querySelector('.board-postItem-board,.card-topic-board,a[href^="/board/"]')) || (/^\/board\//.test(routePath()) ? textOf(document.querySelector('.boardTitle,.areaName,a[href^="/board/"]')) : '');
         return title ? {title, href: abs(attr(link, 'href')), author, ...buildTopicMeta({board, tags: mixed.tags || tags, time: mixed.time || time, views: mixed.views || views, right})} : null;
     };
 
@@ -607,7 +662,7 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
         const date = cleanRowText(textOf(el.querySelector('.message-response-box-middle-date,.message-system-box-date,[class*="date"]')));
         const type = cleanRowText(textOf(el.querySelector('.message-system-box-bar,.message-response-box-middle1,[class*="bar"]'))).replace(date, '').trim();
         const user = textOf(el.querySelector('a[href^="/user/"],a[href*="/user/"]'));
-        return title ? {title, href: abs(attr(link, 'href') || location.pathname), author: user || type, time: date, last: '', extra: ''} : null;
+        return title ? {title, href: abs(attr(link, 'href') || routePath()), author: user || type, time: date, last: '', extra: ''} : null;
     };
 
     const extractRowsFromDoc = (doc, mode) => {
@@ -653,7 +708,7 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
         try {
-            const html = await fetch(path, {credentials: 'include', signal: controller.signal}).then(r => r.text());
+            const html = await fetch(abs(path), {credentials: 'include', signal: controller.signal}).then(r => r.text());
             const doc = new DOMParser().parseFromString(html, 'text/html');
             if (extractRowsFromDoc(doc).length) {
                 state.homeCache.set(path, doc);
@@ -705,9 +760,9 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
     const renderHome = async renderId => {
         const sections = [['今日热门话题', document, 'home']];
         const hotPaths = [
+            ['历史上的今天热门话题', '/topic/hot-history'],
             ['本周热门话题', '/topic/hot-weekly'],
-            ['本月热门话题', '/topic/hot-monthly'],
-            ['历史上的今天热门话题', '/topic/hot-history']
+            ['本月热门话题', '/topic/hot-monthly']
         ];
         const rows = [];
         const todayRows = extractRowsFromDoc(document, 'home').slice(0, 30);
@@ -729,39 +784,38 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
     const renderListPage = async renderId => {
         const rows = [];
         let title = '帖子列表';
-        if (/\/topic\/hot-weekly/.test(location.pathname)) title = '本周热门话题';
-        else if (/\/topic\/hot-monthly/.test(location.pathname)) title = '本月热门话题';
-        else if (/\/topic\/hot-history/.test(location.pathname)) title = '历史上的今天热门话题';
-        else if (/\/newTopics/.test(location.pathname)) title = '新帖';
-        else if (/\/focus/.test(location.pathname)) title = '关注';
-        else if (/\/recommendedTopics/.test(location.pathname)) title = '随机精选';
-        else if (/\/boardList/.test(location.pathname)) title = '版面列表';
-        else if (/\/board\//.test(location.pathname)) title = textOf(document.querySelector('.boardTitle,.areaName,a[href^="/board/"]')) || '版面';
+        if (/\/topic\/hot-weekly/.test(routePath())) title = '本周热门话题';
+        else if (/\/topic\/hot-monthly/.test(routePath())) title = '本月热门话题';
+        else if (/\/topic\/hot-history/.test(routePath())) title = '历史上的今天热门话题';
+        else if (/\/newTopics/.test(routePath())) title = '新帖';
+        else if (/\/focus/.test(routePath())) title = '关注';
+        else if (/\/recommendedTopics/.test(routePath())) title = '随机精选';
+        else if (/\/boardList/.test(routePath())) title = '版面列表';
+        else if (/\/board\//.test(routePath())) title = textOf(document.querySelector('.boardTitle,.areaName,a[href^="/board/"]')) || '版面';
         rows.push(sectionRow(title));
         let sourceDoc = document;
         extractRowsFromDoc(sourceDoc).forEach(row => rows.push(listRow(row)));
-        if (/\/recommendedTopics/.test(location.pathname)) {
+        if (/\/recommendedTopics/.test(routePath())) {
             rows.push(listToolRow(proxyLinkAction(document.querySelector('#recommendation-refresh'), '换一换', '/recommendedTopics')));
         }
         const pagerSource = document.querySelector('.board-list-bar,.ant-pagination,.pagination') || document.querySelector('.page-link')?.parentElement;
         rows.push(listToolRow(cloneInteractiveBlock(pagerSource)));
         const nav = [{text: 'CC98', href: '/'}];
-        if (!/^\/(?:boardList|newTopics|focus|recommendedTopics)/.test(location.pathname)) nav.push({text: '版面列表', href: '/boardList'});
-        if (/^\/board\//.test(location.pathname)) nav.push({text: title, href: location.pathname});
-        else nav.push({text: title, href: location.pathname});
+        if (/^\/board\//.test(routePath())) nav.push({text: title, href: routePath()});
+        else nav.push({text: title, href: routePath()});
         renderShell(tableHtml(rows), nav);
     };
 
     const renderMessagePage = () => {
         const rows = [];
         let title = '消息';
-        if (/\/message\/response/.test(location.pathname)) title = '回复我的';
-        else if (/\/message\/at/.test(location.pathname)) title = '@ 我的';
-        else if (/\/message\/system/.test(location.pathname)) title = '系统通知';
+        if (/\/message\/response/.test(routePath())) title = '回复我的';
+        else if (/\/message\/at/.test(routePath())) title = '@ 我的';
+        else if (/\/message\/system/.test(routePath())) title = '系统通知';
         rows.push(sectionRow(title));
         extractRowsFromDoc(document).forEach(row => rows.push(listRow(row)));
         rows.push(listToolRow(cloneInteractiveBlock(document.querySelector('.pagination'))));
-        renderShell(tableHtml(rows), [{text: 'CC98', href: '/'}, {text: title, href: location.pathname}]);
+        renderShell(tableHtml(rows), [{text: 'CC98', href: '/'}, {text: title, href: routePath()}]);
     };
 
     const proxyAction = (button, label) => {
@@ -813,6 +867,23 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
     const cloneContentBlock = source => {
         if (!source) return '';
         const clone = source.cloneNode(true);
+        clone.querySelectorAll('.signature,[class*="signature"],[class*="Signature"]').forEach(el => el.remove());
+        clone.querySelectorAll('img').forEach(img => {
+            const src = attr(img, 'src') || attr(img, 'data-src') || attr(img, 'data-original') || attr(img, 'data-url');
+            if (src && !attr(img, 'src')) img.setAttribute('src', src);
+            img.removeAttribute('width');
+            img.removeAttribute('height');
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+            img.style.minHeight = '0';
+        });
+        clone.querySelectorAll('figure,p,div,span').forEach(el => {
+            if (!el.querySelector('img,video,canvas')) return;
+            el.style.minHeight = '0';
+            el.style.height = 'auto';
+            el.style.paddingTop = '0';
+            el.style.paddingBottom = '0';
+        });
         const isContentAction = el => {
             const text = textOf(el);
             return /^(A|BUTTON|SUMMARY)$/.test(el.tagName)
@@ -828,6 +899,12 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
     const parseUserInfo = user => {
         const userName = textOf(user?.querySelector('.userMessage-userName,a[href^="/user/"]')) || textOf(user).split(' ')[0] || '匿名用户';
         const userLink = attr(user?.querySelector('a[href^="/user/"]'), 'href');
+        const userRaw = textOf(user);
+        const genderSource = [
+            ...Array.from(user?.querySelectorAll('[title],[aria-label],[class]') || []).map(el => `${attr(el, 'title')} ${attr(el, 'aria-label')} ${attr(el, 'class')}`),
+            userRaw
+        ].join(' ');
+        const gender = /女|female/i.test(genderSource) ? '♀' : (/男|\bmale\b/i.test(genderSource) ? '♂' : '');
         const raw = textOf(user)
             .replace(userName, ' ')
             .replace(/(关注|取关|私信)/g, ' ')
@@ -842,7 +919,8 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
         return {
             userName,
             userLink,
-            postCount: inferredPostCount
+            postCount: inferredPostCount,
+            gender
         };
     };
 
@@ -929,8 +1007,11 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
         if (simple) simple.value = value;
     };
 
+    const isTopicRoute = () => /\/topic\/\d+/.test(routePath());
+
     const renderPostPage = () => {
         const replies = Array.from(document.querySelectorAll('.reply'));
+        const firstUserName = parseUserInfo(replies[0]?.querySelector('.userMessage')).userName;
         const rows = replies.map(reply => {
             const directChildren = Array.from(reply.children);
             const user = directChildren.find(el => el.classList.contains('userMessage')) || reply.querySelector('.userMessage');
@@ -939,9 +1020,12 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
             const operationRow = column.querySelector('.comment1') || Array.from(column.querySelectorAll('.row')).find(el => /赞|踩|评分|引用|追踪|\d+\s+\d+/.test(textOf(el)));
             const postMeta = parsePostMeta(operationRow);
             const userInfo = parseUserInfo(user);
+            const isAuthor = firstUserName && userInfo.userName === firstUserName;
             const userHtml = `
                 <div class="posterInfoLine">
                     <a href="${esc(userInfo.userLink || '#')}">${esc(userInfo.userName)}</a>
+                    ${isAuthor ? `<span class="cc98-userline">楼主</span>` : ''}
+                    ${userInfo.gender ? `<span class="cc98-userline">${esc(userInfo.gender)}</span>` : ''}
                     ${userInfo.postCount ? `<span class="cc98-userline">帖数: ${esc(userInfo.postCount)}</span>` : ''}
                 </div>
             `;
@@ -984,7 +1068,7 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
                     source?.click();
                     [500, 1400, 2600].forEach(delay => window.setTimeout(() => {
                         showOriginalPage();
-                        if (!isLoginRoute()) location.replace('/logOn');
+                        if (!isLoginRoute()) location.replace(withWebVpnPrefix('/logOn'));
                     }, delay));
                 } else {
                     source?.click();
@@ -1032,6 +1116,11 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
         }, true);
         root.addEventListener('click', event => {
             holdInteraction(2200);
+            if (event.target?.id === 'cc98-wps-back') {
+                event.preventDefault();
+                history.back();
+                return;
+            }
             if (event.target?.id === 'cc98-simple-reply-submit') {
                 event.preventDefault();
                 syncSimpleReplyToOriginal();
@@ -1053,7 +1142,7 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
                 clickSource?.click();
                 [500, 1400, 2600].forEach(delay => window.setTimeout(() => {
                     showOriginalPage();
-                    if (!isLoginRoute()) location.replace('/logOn');
+                    if (!isLoginRoute()) location.replace(withWebVpnPrefix('/logOn'));
                 }, delay));
                 return;
             }
@@ -1082,15 +1171,15 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
         });
     };
 
-    const isMessageTableRoute = () => /^\/message\/(?:response|at|system)/.test(location.pathname);
-    const isLoginRoute = () => /^\/logon\b/i.test(location.pathname);
+    const isMessageTableRoute = () => /^\/message\/(?:response|at|system)/.test(routePath());
+    const isLoginRoute = () => /^\/logon\b/i.test(routePath());
     const hasLoggedOutNotice = () => /您当前未登录|当前未登录/.test(document.body?.innerText || '');
     const hasLoggedOutHeader = () => !!document.querySelector('.topBarUserInfo a[href="/logOn"],.topBarUserInfo a[href="/logon"]');
-    const isLoginRequiredRoute = () => /^\/(?:focus|message|usercenter)\b/.test(location.pathname);
+    const isLoginRequiredRoute = () => /^\/(?:focus|message|usercenter)\b/.test(routePath());
     const isExemptRoute = () => isLoginRoute()
-        || /^\/usercenter\b/.test(location.pathname)
-        || /^\/user(?:\/|$)/.test(location.pathname)
-        || (/^\/message/.test(location.pathname) && !isMessageTableRoute());
+        || /^\/usercenter\b/.test(routePath())
+        || /^\/user(?:\/|$)/.test(routePath())
+        || (/^\/message/.test(routePath()) && !isMessageTableRoute());
 
     const showOriginalPage = () => {
         document.getElementById(ROOT_ID)?.remove();
@@ -1102,9 +1191,10 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
 
     const render = async () => {
         if (!state.enabled || !document.body) return;
+        ensureStandaloneWindow();
         if (!isLoginRoute() && sessionStorage.getItem('cc98-wps-after-logout') === '1') {
             showOriginalPage();
-            location.replace('/logOn');
+            location.replace(withWebVpnPrefix('/logOn'));
             return;
         }
         if (isLoginRoute()) {
@@ -1112,7 +1202,7 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
         }
         if (!isLoginRoute() && (hasLoggedOutNotice() || (isLoginRequiredRoute() && hasLoggedOutHeader()))) {
             showOriginalPage();
-            location.assign('/logOn');
+            location.assign(withWebVpnPrefix('/logOn'));
             return;
         }
         if (isExemptRoute()) {
@@ -1127,9 +1217,9 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
             ensureRoot();
             setBodyState();
             bindProxyActions();
-            if (/^\/?$/.test(location.pathname)) await renderHome(renderId);
+            if (/^\/?$/.test(routePath())) await renderHome(renderId);
             else if (isMessageTableRoute()) renderMessagePage();
-            else if (/^\/topic\/\d+/.test(location.pathname) && document.querySelector('.reply')) renderPostPage();
+            else if (isTopicRoute() && document.querySelector('.reply')) renderPostPage();
             else await renderListPage(renderId);
             document.documentElement.classList.remove('cc98-wps-boot');
         } finally {
@@ -1152,24 +1242,38 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
         setBodyState();
     };
 
+    const toggleAppMode = () => {
+        state.appMode = !state.appMode;
+        setValue(STORE_APP_MODE, state.appMode);
+        if (state.appMode) openStandaloneWindow();
+    };
+
     const registerMenus = () => {
         if (typeof GM_registerMenuCommand !== 'function') return;
         GM_registerMenuCommand('切换 WPS 表格伪装 (Alt+W)', toggleEnabled);
         GM_registerMenuCommand('切换图片显示 (Alt+I)', toggleImages);
+        GM_registerMenuCommand('切换独立窗口模式', toggleAppMode);
     };
 
     const bindKeys = () => {
-        window.addEventListener('keydown', event => {
-            if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-            const key = event.key.toLowerCase();
-            if (key === 'w') {
+        const handleShortcut = event => {
+            if (!event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
+            const key = String(event.key || '').toLowerCase();
+            const code = String(event.code || '').toLowerCase();
+            const isW = key === 'w' || code === 'keyw' || event.keyCode === 87 || event.which === 87;
+            const isI = key === 'i' || code === 'keyi' || event.keyCode === 73 || event.which === 73;
+            if (isW) {
                 event.preventDefault();
+                event.stopPropagation();
                 toggleEnabled();
-            } else if (key === 'i') {
+            } else if (isI) {
                 event.preventDefault();
+                event.stopPropagation();
                 toggleImages();
             }
-        }, true);
+        };
+        window.addEventListener('keydown', handleShortcut, true);
+        document.addEventListener('keydown', handleShortcut, true);
     };
 
     let scanTimer = 0;
