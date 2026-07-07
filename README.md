@@ -5,8 +5,17 @@
 ## 安装
 
 1. 安装 Tampermonkey 或兼容的用户脚本管理器。
-2. 打开安装链接：<https://github.com/amiongogo/cc98-wps-table-disguise/raw/main/cc98-wps-table-disguise.user.js>
-3. 在用户脚本管理器中确认安装或更新。
+2. 打开 Greasy Fork 安装链接：<https://greasyfork.org/zh-CN/scripts/585813>
+3. 也可以使用 GitHub raw 链接：<https://github.com/amiongogo/cc98-wps-table-disguise/raw/main/cc98-wps-table-disguise.user.js>
+4. 在用户脚本管理器中确认安装或更新。
+
+## 更新日志
+
+### 2026-07-07
+
+- 优化帖子列表和帖子页布局，调整快捷键为 Alt+Shift 组合，并补充独立窗口模式快捷键。
+- 修复帖子返回来源、图片/无图模式渲染、懒加载内容补渲染、赞踩/翻页等交互响应问题。
+- 补充楼主与性别标签显示，帖数独立换行，并屏蔽匿名用户信息中的“别问我是谁”提示。
 
 ## 功能
 
