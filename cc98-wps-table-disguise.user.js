@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CC98 摸鱼模式
 // @namespace    https://www.cc98.org/
-// @version      0.4.1
+// @version      0.4.2
 // @description  将 CC98 论坛映射为 WPS/Excel 表格模式。使用了[NGA 优化摸鱼体验](https://greasyfork.org/zh-CN/scripts/393991-nga)的部分样式，感谢作者的无私奉献。
 // @author       季风
 // @license      MIT
@@ -144,6 +144,7 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
         renderId: 0,
         lastHref: '',
         postSignature: '',
+        listSignature: '',
         homeCache: new Map(),
         replyText: '',
         loadingDoc: 0,
@@ -1046,6 +1047,7 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
     };
 
     const isTopicRoute = () => /\/topic\/\d+/.test(routePath());
+    const isListRoute = () => !isTopicRoute() && !isExemptRoute() && !isLoginRoute();
 
     const renderPostPage = () => {
         const replies = Array.from(document.querySelectorAll('.reply'));
@@ -1267,6 +1269,7 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
             else if (isTopicRoute() && document.querySelector('.reply')) renderPostPage();
             else await renderListPage(renderId);
             markPostSignature();
+            markListSignature();
             document.documentElement.classList.remove('cc98-wps-boot');
         } finally {
             state.rendering = false;
@@ -1382,6 +1385,13 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
     const markPostSignature = () => {
         state.postSignature = postContentSignature();
     };
+    const listContentSignature = () => {
+        if (!isListRoute()) return '';
+        return extractRowsFromDoc(document).map(row => `${row.href}|${row.title}`).join('||');
+    };
+    const markListSignature = () => {
+        state.listSignature = listContentSignature();
+    };
     const schedulePostRerenderIfChanged = () => {
         if (state.rendering || state.loadingDoc || !isTopicRoute() || !document.getElementById(ROOT_ID)) return;
         if (hasActiveSelection() || isEditingSimpleReply() || isInteractiveElement(document.activeElement) || hasOpenPopup()) return;
@@ -1402,6 +1412,27 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
         return Array.from(mutation.addedNodes).some(node => {
             if (!(node instanceof Element)) return false;
             return node.matches('.reply,img,video,canvas,source') || !!node.querySelector('.reply,img,video,canvas,source');
+        });
+    };
+    const listSourceSelectors = '.focus-topic,.card-topic,.board-postItem-body,.mainPageListRow,.boardBlock,.message-response-box,.message-system-box,[class*="message-at"]';
+    const scheduleListRerenderIfChanged = () => {
+        if (state.rendering || state.loadingDoc || !isListRoute() || !document.getElementById(ROOT_ID)) return;
+        if (hasActiveSelection() || isEditingSimpleReply() || isInteractiveElement(document.activeElement) || hasOpenPopup()) return;
+        const next = listContentSignature();
+        if (next && next !== state.listSignature) {
+            state.listSignature = next;
+            scheduleRender(450, true);
+        }
+    };
+    const isListSourceMutation = mutation => {
+        const target = mutation.target;
+        if (!(target instanceof Element)) return false;
+        if (target.closest(`#${ROOT_ID},.hld__excel-header,.hld__excel-footer,#cc98-wps-topmenu`)) return false;
+        if (mutation.type === 'attributes') return false;
+        if (target.closest(listSourceSelectors)) return true;
+        return Array.from(mutation.addedNodes).some(node => {
+            if (!(node instanceof Element)) return false;
+            return node.matches(listSourceSelectors) || !!node.querySelector(listSourceSelectors);
         });
     };
     const scheduleRender = (delay = 350, force = false) => {
@@ -1435,6 +1466,7 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
             if (fromSynthetic) return;
             if (!state.rendering && !state.loadingDoc && !document.getElementById(ROOT_ID)) scheduleRender(300, true);
             else if (mutations.some(isPostSourceMutation)) schedulePostRerenderIfChanged();
+            else if (mutations.some(isListSourceMutation)) scheduleListRerenderIfChanged();
         });
         observer.observe(document.body, {
             childList: true,
@@ -1447,6 +1479,9 @@ const CHINA_PROVINCE = ['北京', '天津', '上海', '重庆', '河北', '山�
                 schedulePostRerenderIfChanged();
             }
         }, true);
+        window.addEventListener('scroll', () => scheduleListRerenderIfChanged(), {passive: true});
+        window.addEventListener('wheel', () => setTimeout(scheduleListRerenderIfChanged, 700), {passive: true});
+        setInterval(scheduleListRerenderIfChanged, 1500);
         setInterval(() => {
             if (state.lastHref !== location.href) {
                 state.lastHref = location.href;
